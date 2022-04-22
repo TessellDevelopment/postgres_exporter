@@ -14,8 +14,12 @@
 package main
 
 import (
+	"encoding/json"
 	"net/http"
 	"os"
+	"runtime"
+
+	_ "net/http/pprof"
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -60,6 +64,17 @@ const (
 	// Metric label used for server identification.
 	serverLabelName = "server"
 )
+
+func gcHandler(w http.ResponseWriter, r *http.Request) {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	gcJSON, err := json.Marshal(m)
+	if err != nil {
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(gcJSON)
+}
 
 func main() {
 	kingpin.Version(version.Print(exporterName))
@@ -131,6 +146,8 @@ func main() {
 		w.Header().Set("Content-Type", "text/html; charset=UTF-8") // nolint: errcheck
 		w.Write(landingPage)                                       // nolint: errcheck
 	})
+
+	http.HandleFunc("/debug/gc", gcHandler)
 
 	level.Info(logger).Log("msg", "Listening on address", "address", *listenAddress)
 	srv := &http.Server{Addr: *listenAddress}

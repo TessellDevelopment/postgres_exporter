@@ -97,6 +97,7 @@ func (s *Server) Close() error {
 // Ping checks connection availability and possibly invalidates the connection if it fails.
 func (s *Server) Ping() error {
 	if err := s.db.Ping(); err != nil {
+		level.Error(logger).Log("msg", "TESSELL: failed to ping database", "err", err)
 		if cerr := s.Close(); cerr != nil {
 			level.Error(logger).Log("msg", "Error while closing non-pinging DB connection", "server", s, "err", cerr)
 		}
@@ -163,12 +164,14 @@ func (s *Servers) GetServer(dsn string) (*Server, error) {
 		if !ok {
 			server, err = NewServer(dsn, s.opts...)
 			if err != nil {
+				level.Error(logger).Log("msg", "TESSELL: failed to create new server instance", "dsn", loggableDSN(dsn), "err", err)
 				time.Sleep(time.Duration(errCount) * time.Second)
 				continue
 			}
 			s.servers[dsn] = server
 		}
 		if err = server.Ping(); err != nil {
+			level.Error(logger).Log("msg", "TESSELL: failed to ping new server", "err", err)
 			delete(s.servers, dsn)
 			time.Sleep(time.Duration(errCount) * time.Second)
 			continue
